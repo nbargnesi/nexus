@@ -3,13 +3,41 @@ package main
 import (
 	"fmt"
 	zmq "github.com/pebbe/zmq4"
+	"log"
 	"os"
 	"strconv"
 )
 
+const (
+	BCAST_INGRESS_PORT   = "GL_BCAST_INGRESS_PORT"
+	BCAST_EGRESS_PORT    = "GL_BCAST_EGRESS_PORT"
+	REQREP1_INGRESS_PORT = "GL_REQREP1_INGRESS_PORT"
+	REQREP1_EGRESS_PORT  = "GL_REQREP1_EGRESS_PORT"
+	REQREP2_INGRESS_PORT = "GL_REQREP2_INGRESS_PORT"
+	REQREP2_EGRESS_PORT  = "GL_REQREP2_EGRESS_PORT"
+)
+
 func main() {
-	bcast_ingress_port, err := strconv.ParseUint(os.Getenv("GREENLINE_BCAST_INGRESS_PORT"), 0, 32)
+	env := FatalGetenv(BCAST_INGRESS_PORT)
+	bcast_ingress_port, err := strconv.ParseUint(env, 0, 32)
+	env = FatalGetenv(BCAST_EGRESS_PORT)
+	bcast_egress_port, err := strconv.ParseUint(env, 0, 32)
+	env = FatalGetenv(REQREP1_INGRESS_PORT)
+	reqrep1_ingress_port, err := strconv.ParseUint(env, 0, 32)
+	env = FatalGetenv(REQREP1_EGRESS_PORT)
+	reqrep1_egress_port, err := strconv.ParseUint(env, 0, 32)
+	env = FatalGetenv(REQREP2_INGRESS_PORT)
+	reqrep2_ingress_port, err := strconv.ParseUint(env, 0, 32)
+	env = FatalGetenv(REQREP2_EGRESS_PORT)
+	reqrep2_egress_port, err := strconv.ParseUint(env, 0, 32)
+
 	fmt.Println(bcast_ingress_port)
+	fmt.Println(bcast_egress_port)
+	fmt.Println(reqrep1_ingress_port)
+	fmt.Println(reqrep1_egress_port)
+	fmt.Println(reqrep2_ingress_port)
+	fmt.Println(reqrep2_egress_port)
+
 	fmt.Println("starting")
 	ingress, err := zmq.NewSocket(zmq.SUB)
 	if err != nil {
@@ -51,4 +79,12 @@ func main() {
 			}
 		}
 	}
+}
+
+func FatalGetenv(env string) string {
+	_env := os.Getenv(env)
+	if len(_env) == 0 {
+		log.Fatal("no " + env + " is set")
+	}
+	return _env
 }
