@@ -18,7 +18,7 @@ fi
 while true; do
     gate || exit 1
     clear
-    date +%T
+    date +"%a %b %m %T"
     echo "[BUILDING]"
     $CMD && echo "[COMPLETE]"
 done
