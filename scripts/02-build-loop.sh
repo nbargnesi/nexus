@@ -15,12 +15,13 @@ which colorgo >/dev/null
 if [ $? -eq 0 ]; then
     CMD="colorgo build"
 fi
+mkdir -p build || exit 1
 while true; do
     gate || exit 1
     clear
     date +"%a %b %m %T"
     echo "[BUILDING]"
-    $CMD && echo "[COMPLETE]"
+    $CMD $GL_BUILD_ARGS && echo "[COMPLETE]"
 done
 exit 0
 
