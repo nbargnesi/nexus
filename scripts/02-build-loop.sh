@@ -10,16 +10,17 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"/../
 source "$DIR"/env.sh || exit 1
 cd "$DIR" || exit 1
 
-CMD="go build -x"
+CMD="go build"
 which colorgo >/dev/null
 if [ $? -eq 0 ]; then
-    CMD="colorgo build -x"
+    CMD="colorgo build"
 fi
 while true; do
     gate || exit 1
     clear
+    date +%T
     echo "[BUILDING]"
-    $CMD && echo -e "\n[COMPLETE]"
+    $CMD && echo "[COMPLETE]"
 done
 exit 0
 
