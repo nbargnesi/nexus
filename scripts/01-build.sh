@@ -14,8 +14,8 @@ CMD="go build"
 which colorgo >/dev/null
 if [ $? -eq 0 ]; then
     echo "[BUILDING]"
-    CMD="colorgo build" && echo "[COMPLETE]"
+    CMD="colorgo build"
 fi
 mkdir -p build || exit 1
-$CMD $GL_BUILD_ARGS
+$CMD $GL_BUILD_ARGS && echo "[COMPLETE]"
 
