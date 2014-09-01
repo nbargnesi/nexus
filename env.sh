@@ -8,6 +8,14 @@ source "$DIR/.gosh.sh" || exit 1
 default DIR             "$DIR"
 default CUSTOM_ENV      "$DIR/env.sh.custom"
 
+### GREENLINE DEFAULT PORTS ###
+default GL_BCAST_INGRESS_PORT   9002
+default GL_BCAST_EGRESS_PORT    9003
+default GL_RR1_INGRESS_PORT     9004
+default GL_RR1_EGRESS_PORT      9005
+default GL_RR2_INGRESS_PORT     9006
+default GL_RR2_EGRESS_PORT      9007
+
 ### PATHS ###
 default BUILD           "$DIR"/build
 
