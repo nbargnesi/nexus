@@ -34,7 +34,7 @@ export GOSH_DIR GOSH_PATH GOSH_SCRIPTS
 cd "$GOSH_SCRIPTS" || exit 1
 
 # GOSH_PROMPT: go shell prompt.
-GOSH_PROMPT=${GOSH_PROMPT:="gosh (?|#)> "}
+GOSH_PROMPT=${GOSH_PROMPT:="gosh (?|#|#?)> "}
 
 function header {
     echo "gosh: the go shell"
@@ -48,11 +48,50 @@ function redefine_scripts {
     # How go shell scripts are found.
     SCRIPTS=($(find "$GOSH_SCRIPTS" -maxdepth 1 -executable \
               -regex '.*/[0-9]+-.*\.sh' -exec basename {} \; | sort))
-    if [ "${#SCRIPTS[@]}" -eq 0 ]; then
+    NUM_SCRIPTS="${#SCRIPTS[@]}"
+    PADDING=$(echo -n "$NUM_SCRIPTS:" | wc -c)
+    if [ "$NUM_SCRIPTS" -eq 0 ]; then
         echo "No scripts found."
         echo "See https://github.com/formwork-io/gosh."
         exit 1
     fi
+}
+
+# Returns 0 if $1 looks like help being requested for a script, 1 otherwise.
+function valid_extended_help {
+    if [[ "$1" =~ ^[1-9][0-9]*\?$ ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Returns 0 if $1 looks like an int greater than 0, 1 otherwise.
+function valid_item {
+    if [[ "$1" =~ ^[1-9][0-9]*$ ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Source script $1, defaulting VARS as needed.
+function source_script {
+    unset SCRIPT_NAME SCRIPT_HELP SCRIPT_EXTENDED_HELP
+    export GOGO_GOSH_SOURCE=1
+    source "$1"
+    unset GOGO_GOSH_SOURCE
+    if [ -z "$SCRIPT_NAME" ]; then
+        SCRIPT_NAME="$(basename "$1")"
+    fi
+    if [ -z "$SCRIPT_HELP" ]; then
+        SCRIPT_HELP="This script has no help."
+    fi
+    if [ -z "$SCRIPT_EXTENDED_HELP" ]; then
+        SCRIPT_EXTENDED_HELP="This script has no extended help."
+    fi
+}
+
+function warn_item() {
+    echo -e "\nMenu items are between 1 and $NUM_SCRIPTS."
 }
 
 # Prints help.
@@ -96,11 +135,20 @@ function drain_stdin {
     done
 }
 
+# Strip the color codes in $1.
+function strip_color {
+    echo -en "$@" \
+        | sed -E "s/"$'\E'"\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g"
+}
+
 # Echo $1 in reverse video.
 function echo_hl {
-    tput smso
-    echo -n "$1"
-    tput rmso
+    echo -en "\e[7m$1\e[0m"
+}
+
+# Echo $1 in normal video.
+function echo_nohl {
+    echo -en "\e[0m$1\e[0m"
 }
 
 # Output a script header.
@@ -121,104 +169,186 @@ function script {
     return $EC
 }
 
+# Output script help.
+# E.g.:
+#     script "./01-foo.sh"
+# Prints:
+#     <script filename>
+#
+#     NAME
+#            SCRIPT_NAME
+#
+#     HELP
+#            SCRIPT_HELP
+#     
+#     EXTENDED HELP
+#            SCRIPT_EXTENDED_HELP
+#
+function script_help {
+    source_script "$1"
+    local fname=$(basename "$1")
+    echo     "$fname"
+    echo
+    echo -e  "\e[1mNAME\e[0m"
+    echo -e  "       $SCRIPT_NAME"
+    echo
+    echo -e  "\e[1mHELP\e[0m"
+    echo -e  "       $SCRIPT_HELP"
+    echo
+    echo -e  "\e[1mEXTENDED HELP\e[0m"
+    FOLD_WIDTH=$(($(tput cols) - 14))
+    echo -e "$SCRIPT_EXTENDED_HELP" | fold -sw $FOLD_WIDTH | while read line; do
+        echo "       $line"
+    done
+}
+
 function menu_short() {
     echo
-    redefine_scripts
     declare -i i=0
-    while [ $i -lt ${#SCRIPTS[@]} ]; do
-        source "${SCRIPTS[$i]}"
+    while [ $i -lt $NUM_SCRIPTS ]; do
+        source_script "${SCRIPTS[$i]}"
         declare -i LASTCMD=${LASTCMD:-0}
+        ITEM=$(printf "%${PADDING}s" "$((i + 1)):")
         if [ "$((LASTCMD))" -eq "$((i + 1))" ]; then
-            tput smso
-            echo -e "$((i + 1)): $SCRIPT_DESC"
-            tput rmso
+            local NAME=$(strip_color "$SCRIPT_NAME")
+            echo_hl "$ITEM $NAME"
+            echo
         else
-            echo -e "$((i + 1)): $SCRIPT_DESC"
+            echo_nohl "$ITEM $SCRIPT_NAME"
+            echo
         fi
         i=$i+1
     done
 }
 
 function menu_long() {
-    echo
-    redefine_scripts
     declare -i i=0
-    while [ $i -lt ${#SCRIPTS[@]} ]; do
-        source "${SCRIPTS[$i]}"
+    while [ $i -lt $NUM_SCRIPTS ]; do
+        source_script "${SCRIPTS[$i]}"
         declare -i LASTCMD=${LASTCMD:-0}
+        SCRIPT_NAME=$(strip_color "$SCRIPT_NAME")
+        SCRIPT_HELP=$(strip_color "$SCRIPT_HELP")
+        ITEM=$(printf "%${PADDING}s" "$((i + 1)):")
+        ITEM="$ITEM $SCRIPT_NAME:\t$SCRIPT_HELP"
         if [ "$((LASTCMD))" -eq "$((i + 1))" ]; then
-            tput smso
-            echo -e "$((i + 1)): $SCRIPT_DESC:\t$SCRIPT_HELP"
-            tput rmso
+            echo_hl "$ITEM"
+            echo
         else
-            echo -e "$((i + 1)): $SCRIPT_DESC:\t$SCRIPT_HELP"
+            echo_nohl "$ITEM"
+            echo
         fi
         i=$i+1
     done
 }
 
-function loop() {
-    echo
-    echo "Usage: <menu item>..."
-    echo "Try 'help' for more information."
-    echo
-    echo "Entering the shell, [CTRL-C] to exit."
-    menu_short
-    while true; do
-        echo -en "$PROMPT"
-        read REPLY || exit 0
-        reset_prompt
-        if [ -z "$REPLY" ]; then
-            menu_short
-            continue
-        elif [ "$REPLY" == "?" ]; then
-            menu_long | column -t -s '	'
-            continue
-        elif [ "$REPLY" == "help" ]; then
-            help
-            menu_short
-            continue
-        elif [ "$REPLY" == "exit" ]; then
+function process_input() {
+    while (($#)); do
+        TOKEN="$1"
+
+        # special case; allow exit in input arrays
+        if [ "$TOKEN" == "exit" ]; then
             exit 0
         fi
-        for x in $REPLY; do
-            # XXX check x is valid
-            declare -i x=$x-1
-            local CHOICE=${SCRIPTS[$x]}
+
+        # set to 1 when script help requested
+        local extended=0
+        # set to 1 when item requested
+        local item=0
+
+        # does $TOKEN look like the user requested extended help?
+        if (valid_extended_help "$TOKEN"); then
+            extended=1
+
+        # does $TOKEN look like the user requested a menu item?
+        elif (valid_item "$TOKEN"); then
+            item=1
+
+        # doesn't look like extended help or a menu item...
+        else
+            warn_item
+            # discard all remaining input
+            break
+        fi
+
+        # We know the user wants extended help, strip the '?'.
+        [[ "$extended" -eq 1 ]] && TOKEN=$(echo "$TOKEN" | tr -d '?')
+
+        # does $TOKEN fall outside the range of menu items?
+        if [ "$TOKEN" -gt $NUM_SCRIPTS ]; then
+            warn_item
+            # discard all remaining input
+            break
+        fi
+
+        # SCRIPTS is a zero-based array so decrement
+        # menu item (menu item 1 becomes choice 0)
+        local x=$((TOKEN - 1))
+        local CHOICE=${SCRIPTS[$x]} || break
+
+        if [ "$extended" -eq 1 ]; then
+            # Show extended help
+            script_help "$CHOICE"
+        elif [ "$item" -eq 1 ]; then
+            # Run the script...
             script "$CHOICE"
+
+            # ... and capture its exit status
             declare -i EC=$?
-            LASTCMD=$((x + 1))
+
+            LASTCMD=$((TOKEN))
             if [ "$EC" -ne 0 ]; then
                 PROMPT="\n($CHOICE failed)\n${GOSH_PROMPT}"
                 # stop here, last CHOICE failed
                 break
             fi
-            # continue to next CHOICE
-        done
+        fi
+
+        # continue to next CHOICE
+        shift
+    done
+}
+
+function loop() {
+    echo
+    echo "Entering the shell, [CTRL-C] to exit."
+    menu_short
+    while true; do
+        echo -en "$PROMPT"
+        read -a REPLY || exit 0
+        reset_prompt
+        if [ "${#REPLY[@]}" -eq 0 ]; then
+            menu_short
+            continue
+        elif [ "${#REPLY[@]}" -eq 1 ]; then
+            if [ "${REPLY[0]}" == "?" ]; then
+                echo
+                menu_long | column -t -s '	'
+                continue
+            elif [ "${REPLY[0]}" == "help" ]; then
+                help
+                menu_short
+                continue
+            fi
+        fi
+        process_input "${REPLY[@]}"
+        redefine_scripts
     done
 }
 
 function args() {
     echo
     echo "Processing arguments before entering the shell."
-    redefine_scripts
-    for x in "$@"; do
-        # XXX check x is valid
-        declare -i x=$x-1
-        local CHOICE=${SCRIPTS[$x]}
-        script "$CHOICE"
-        declare -i EC=$?
-        LASTCMD=$((x + 1))
-        if [ "$EC" -ne 0 ]; then
-            PROMPT="\n($CHOICE failed)\n${GOSH_PROMPT}"
-            # stop here, last CHOICE failed
-            break
-        fi
-        # continue to next CHOICE
-    done
+    process_input "$@"
+    echo "Processing arguments before entering the shell."
 }
 
+redefine_scripts
 if [ $# -gt 0 ]; then
     args "$@"
+else
+    echo
+    echo "Usage: <menu item>..."
+    echo "Try 'help' for more information."
 fi
 loop
+

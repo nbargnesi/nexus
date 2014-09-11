@@ -1,9 +1,9 @@
 #/usr/bin/env bash
 
 # The next three lines are for the go shell.
+export SCRIPT_NAME="run"
 export SCRIPT_HELP="Runs greenline."
-export SCRIPT_DESC="run"
-[[ "${BASH_SOURCE[0]}" != "${0}" ]] && return 0
+[[ "$GOGO_GOSH_SOURCE" -eq 1 ]] && return 0
 
 # Normal script execution starts here.
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"/../
