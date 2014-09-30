@@ -3,3 +3,6 @@ build
 # go shell history
 .goshhst
 
+# ignore the go shell custom env
+env.sh.custom
+
