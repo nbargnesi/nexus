@@ -24,9 +24,11 @@ package main
 import (
 	"fmt"
 	zmq "github.com/pebbe/zmq4"
-	"log"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 )
 
 const (
@@ -52,7 +54,7 @@ func main() {
 	env = Getenv(RR2_EGRESS_PORT)
 	rr2_egress_port := AsPort(env)
 
-	fmt.Println("starting")
+	Print("starting")
 
 	// CREATE EACH SOCKET...
 	sub_ingress := NewSocket(zmq.SUB)
@@ -66,19 +68,18 @@ func main() {
 	defer rr1_ingress.Close()
 	rr1_egress := NewSocket(zmq.DEALER)
 	defer rr1_egress.Close()
-
 	rr2_ingress := NewSocket(zmq.ROUTER)
 	defer rr2_ingress.Close()
 	rr2_egress := NewSocket(zmq.DEALER)
 	defer rr2_egress.Close()
 
 	// ... AND BIND
-	Bind(sub_ingress, "tcp", "127.0.0.1", bcast_ingress_port)
-	Bind(pub_egress, "tcp", "127.0.0.1", bcast_egress_port)
-	Bind(rr1_ingress, "tcp", "127.0.0.1", rr1_ingress_port)
-	Bind(rr1_egress, "tcp", "127.0.0.1", rr1_egress_port)
-	Bind(rr2_ingress, "tcp", "127.0.0.1", rr2_ingress_port)
-	Bind(rr2_egress, "tcp", "127.0.0.1", rr2_egress_port)
+	Bind(sub_ingress, "tcp", "0.0.0.0", bcast_ingress_port)
+	Bind(pub_egress, "tcp", "0.0.0.0", bcast_egress_port)
+	Bind(rr1_ingress, "tcp", "0.0.0.0", rr1_ingress_port)
+	Bind(rr1_egress, "tcp", "0.0.0.0", rr1_egress_port)
+	Bind(rr2_ingress, "tcp", "0.0.0.0", rr2_ingress_port)
+	Bind(rr2_egress, "tcp", "0.0.0.0", rr2_egress_port)
 
 	poller := zmq.NewPoller()
 	poller.Add(sub_ingress, zmq.POLLIN)
@@ -87,21 +88,37 @@ func main() {
 	poller.Add(rr1_egress, zmq.POLLIN)
 	poller.Add(rr2_egress, zmq.POLLIN)
 
-	fmt.Println("greenline alive")
+	Print("greenline alive")
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	go func() {
+		for sig := range sigchan {
+			switch sig {
+			case syscall.SIGTERM:
+				Die("received SIGTERM")
+			case syscall.SIGINT:
+				Die("received SIGINT")
+			case syscall.SIGQUIT:
+				Die("received SIGQUIT")
+			}
+		}
+	}()
+
+	Print("greenline ready")
 	for {
 		sockets, _ := poller.Poll(-1)
 		for _, socket := range sockets {
 			switch s := socket.Socket; s {
 			case sub_ingress:
-				log.Println("processing broadcast message")
+				Print("processing broadcast message")
 				for {
 					msg, err := s.Recv(0)
 					if err != nil {
-						log.Fatalf("broadcast more: %s", err.Error())
+						Die("broadcast more: %s", err.Error())
 					}
 					more, err := s.GetRcvmore()
 					if err != nil {
-						log.Fatalf("broadcast recv more: %s", err.Error())
+						Die("broadcast recv more: %s", err.Error())
 					}
 					if more {
 						pub_egress.Send(msg, zmq.SNDMORE)
@@ -111,15 +128,15 @@ func main() {
 					}
 				}
 			case rr1_ingress:
-				log.Println("processing rr1 request")
+				Print("processing rr1 request")
 				for {
 					msg, err := s.Recv(0)
 					if err != nil {
-						log.Fatalf("rr1 ingress: %s", err.Error())
+						Die("rr1 ingress: %s", err.Error())
 					}
 					more, err := s.GetRcvmore()
 					if err != nil {
-						log.Fatalf("rr1 ingress recv more: %s", err.Error())
+						Die("rr1 ingress recv more: %s", err.Error())
 					}
 					if more {
 						rr1_egress.Send(msg, zmq.SNDMORE)
@@ -129,14 +146,15 @@ func main() {
 					}
 				}
 			case rr2_ingress:
+				Print("processing rr2 request")
 				for {
 					msg, err := s.Recv(0)
 					if err != nil {
-						log.Fatalf("rr2 ingress: %s", err.Error())
+						Die("rr2 ingress: %s", err.Error())
 					}
 					more, err := s.GetRcvmore()
 					if err != nil {
-						log.Fatalf("rr2 ingress recv more: %s", err.Error())
+						Die("rr2 ingress recv more: %s", err.Error())
 					}
 					if more {
 						rr2_egress.Send(msg, zmq.SNDMORE)
@@ -146,15 +164,15 @@ func main() {
 					}
 				}
 			case rr1_egress:
-				log.Println("processing rr1 response")
+				Print("processing rr1 response")
 				for {
 					msg, err := s.Recv(0)
 					if err != nil {
-						log.Fatalf("rr1 egress: %s", err.Error())
+						Die("rr1 egress: %s", err.Error())
 					}
 					more, err := s.GetRcvmore()
 					if err != nil {
-						log.Fatalf("rr1 egress recv more: %s", err.Error())
+						Die("rr1 egress recv more: %s", err.Error())
 					}
 					if more {
 						rr1_ingress.Send(msg, zmq.SNDMORE)
@@ -164,14 +182,15 @@ func main() {
 					}
 				}
 			case rr2_egress:
+				Print("processing rr2 response")
 				for {
 					msg, err := s.Recv(0)
 					if err != nil {
-						log.Fatalf("rr2 egress: %s", err.Error())
+						Die("rr2 egress: %s", err.Error())
 					}
 					more, err := s.GetRcvmore()
 					if err != nil {
-						log.Fatalf("rr2 egress recv more: %s", err.Error())
+						Die("rr2 egress recv more: %s", err.Error())
 					}
 					if more {
 						rr2_ingress.Send(msg, zmq.SNDMORE)
@@ -188,7 +207,7 @@ func main() {
 func Getenv(env string) string {
 	_env := os.Getenv(env)
 	if len(_env) == 0 {
-		log.Fatal("no " + env + " is set")
+		Die("no " + env + " is set")
 	}
 	return _env
 }
@@ -196,7 +215,9 @@ func Getenv(env string) string {
 func AsPort(env string) (port int) {
 	port, err := strconv.Atoi(env)
 	if err != nil {
-		log.Fatalf("invalid port: %s", env)
+		Die("invalid port: %s", env)
+	} else if port < 1 || port > 65535 {
+		Die("invalid port: %s", env)
 	}
 	return
 }
@@ -204,15 +225,49 @@ func AsPort(env string) (port int) {
 func NewSocket(ztype zmq.Type) (socket *zmq.Socket) {
 	socket, err := zmq.NewSocket(ztype)
 	if err != nil {
-		log.Fatalf("failed creating socket type %d: %s", ztype, err.Error())
+		Die("failed creating socket type %d: %s", ztype, err.Error())
 	}
 	return
 }
 
 func Bind(socket *zmq.Socket, transport string, address string, port int) {
 	endpoint := fmt.Sprintf("%s://%s:%d", transport, address, port)
+	Out("Binding socket %d... ", port)
 	err := socket.Bind(endpoint)
 	if err != nil {
-		log.Fatalf("failed binding %s: %s", endpoint, err.Error())
+		Die("failed binding %s: %s", endpoint, err.Error())
 	}
+	fmt.Println("done.")
+}
+
+func MakeMsg(msg string, args ...interface{}) string {
+	const layout = "%d%02d%02d-%02d-%02d-%02d greenline[%d]: %s"
+	now := time.Now()
+	year := now.Year()
+	month := now.Month()
+	day := now.Day()
+	hour := now.Hour()
+	minute := now.Minute()
+	seconds := now.Second()
+	pid := os.Getpid()
+	arg := fmt.Sprintf(msg, args...)
+	ret := fmt.Sprintf(layout, year, month, day, hour, minute, seconds, pid, arg)
+	return ret
+}
+
+func Print(msg string, args ...interface{}) {
+	msg = MakeMsg(msg, args...)
+	fmt.Fprintf(os.Stdout, msg+"\n")
+}
+
+func Out(msg string, args ...interface{}) {
+	msg = MakeMsg(msg, args...)
+	fmt.Fprintf(os.Stdout, msg)
+	os.Stdout.Sync()
+}
+
+func Die(msg string, args ...interface{}) {
+	msg = MakeMsg(msg, args...)
+	fmt.Fprintf(os.Stderr, msg+"\n")
+	os.Exit(1)
 }
