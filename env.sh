@@ -21,6 +21,7 @@ default BUILD           "$DIR"/build
 
 ### GOLANG ###
 default GL_BUILD_ARGS   "-o $BUILD/greenline"
+default GL_INSTALL_ARGS ""
 
 ### THE GO SHELL ###
 default GOSH_SCRIPTS    "$DIR"/scripts
