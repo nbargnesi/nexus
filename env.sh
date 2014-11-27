@@ -7,7 +7,7 @@ source "$DIR/.gosh.sh" || exit 1
 ### GENERAL ENV VARS ###
 default DIR             "$DIR"
 default CUSTOM_ENV_SH   "$DIR/env.sh.custom"
-default GL_VERSION      "master"
+default GL_VERSION      "0.1.3"
 
 ### GREENLINE DEFAULT PORTS ###
 default GL_BCAST_INGRESS_PORT   9002
