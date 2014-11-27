@@ -18,7 +18,6 @@ default GL_RR2_EGRESS_PORT      9007
 
 ### PATHS ###
 default BUILD           "$DIR"/build
-default DIST            "$DIR"/dist
 
 ### GOLANG ###
 default GL_BUILD_ARGS   "-o $BUILD/greenline"
