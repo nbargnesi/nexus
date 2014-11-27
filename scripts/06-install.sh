@@ -2,7 +2,7 @@
 
 # The next three lines are for the go shell.
 export SCRIPT_NAME="install"
-export SCRIPT_HELP="Run go install"
+export SCRIPT_HELP="Run go install."
 [[ "$GOGO_GOSH_SOURCE" -eq 1 ]] && return 0
 
 # Normal script execution starts here.
