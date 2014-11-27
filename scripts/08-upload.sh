@@ -30,9 +30,10 @@ HTTP_STATUS=$(curl --silent \
      -w %{http_code} \
      -o /dev/null \
      "$GH_UPLOAD_API/$GH_API_PATH?name=$ARTIFACT.tar.gz" \
-     -d@$ARTIFACT.tar.gz)
+     -F "filecomment=This is an image file" -F "name=@$ARTIFACT.tar.gz")
 if [ "$HTTP_STATUS" != "201" ]; then
     echo "FAIL, status: $HTTP_STATUS"
     exit 1
 fi
 
+#     -d@$ARTIFACT.tar.gz)
