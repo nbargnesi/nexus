@@ -2,11 +2,12 @@
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Pull in standard functions, e.g., default.
-source "$DIR/.gosh.sh" || exit 1
+source "$DIR/.gosh.sh" || return 1
+default CUSTOM_ENV_SH "$DIR/env.sh.custom"
+[[ -r "$CUSTOM_ENV_SH" ]] && source "$CUSTOM_ENV_SH" || return 1
 
 ### GENERAL ENV VARS ###
 default DIR             "$DIR"
-default CUSTOM_ENV_SH   "$DIR/env.sh.custom"
 default GL_VERSION      "experimental"
 
 ### GREENLINE DEFAULT PORTS ###
@@ -27,10 +28,4 @@ default GL_INSTALL_ARGS ""
 ### THE GO SHELL ###
 default GOSH_SCRIPTS    "$DIR"/scripts
 default GOSH_PROMPT     "gosh \e[0;32mgreenline\e[0m (?|#|#?)> "
-
-default CUSTOM_ENV  "$GL_DIR/env.sh.custom"
-
-if [ -r "$CUSTOM_ENV_SH" ]; then
-    source "$CUSTOM_ENV_SH" || exit 1
-fi
 
