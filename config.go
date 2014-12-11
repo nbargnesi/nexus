@@ -74,7 +74,9 @@ func ReadEnvironment() ([]rail, error) {
 	for {
 		name, err := getenv(fmt.Sprintf(GL_RAIL_NAME_TMPL, index))
 		if err != nil {
-			return nil, err
+			if index != 0 {
+				break
+			}
 		}
 		if name == "" {
 			break
