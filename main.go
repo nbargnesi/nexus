@@ -23,11 +23,11 @@ package main
 
 import (
 	"fmt"
+	zmq "github.com/pebbe/zmq4"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-	zmq "github.com/pebbe/zmq4"
 )
 
 func main() {
@@ -45,14 +45,14 @@ func main() {
 		}
 	}
 
-	socket_pairs     := make(map[*zmq.Socket]*zmq.Socket)
-	socket_names     := make(map[*zmq.Socket]string)
+	socket_pairs := make(map[*zmq.Socket]*zmq.Socket)
+	socket_names := make(map[*zmq.Socket]string)
 	poller := zmq.NewPoller()
 	for _, rail := range rails {
 		pprint("starting rail %s as %s", rail.Name, rail.Pattern)
 
 		var ingress *zmq.Socket
-		var egress  *zmq.Socket
+		var egress *zmq.Socket
 		switch rail.Pattern {
 		case "pubsub":
 			ingress, egress = railToPubSub(&rail, poller)
@@ -62,11 +62,11 @@ func main() {
 			die("The pattern %s is not valid.", rail.Pattern)
 		}
 
-		socket_pairs[ingress]     = egress
-		socket_names[ingress]     = fmt.Sprintf("%s (ingress)", rail.Name)
+		socket_pairs[ingress] = egress
+		socket_names[ingress] = fmt.Sprintf("%s (ingress)", rail.Name)
 
-		socket_pairs[egress]      = ingress
-		socket_names[egress]     = fmt.Sprintf("%s (egress)", rail.Name)
+		socket_pairs[egress] = ingress
+		socket_names[egress] = fmt.Sprintf("%s (egress)", rail.Name)
 
 		defer ingress.Close()
 		defer egress.Close()
@@ -85,9 +85,9 @@ func main() {
 	for {
 		sockets, _ := poller.Poll(-1)
 		for _, polled := range sockets {
-			socket        := polled.Socket
+			socket := polled.Socket
 			paired_socket := socket_pairs[socket]
-			name          := socket_names[socket]
+			name := socket_names[socket]
 
 			pprint("processing message for %s", name)
 			for {
