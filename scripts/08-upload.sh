@@ -28,7 +28,6 @@ if [ "$ARCH" != "x86_64" ]; then
     echo "(See ${BASH_SOURCE[0]}:$LINENO for context)" >&2
     exit 1
 fi
-exit 0
 
 github-release upload \
     --user formwork-io \
