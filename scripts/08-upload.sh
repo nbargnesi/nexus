@@ -21,6 +21,15 @@ export GITHUB_TOKEN=$GH_KEY
 
 PLAT=$(uname | tr '[:upper:]' '[:lower:]')
 
+ARCH=$(uname -m)
+if [ "$ARCH" != "x86_64" ]; then
+    # Nothing technical about this, x86_64 is all devs have ATM.
+    echo "Sorry, only x86_64 arch is supported currently (not $ARCH)." >&2
+    echo "(See ${BASH_SOURCE[0]}:$LINENO for context)" >&2
+    exit 1
+fi
+exit 0
+
 github-release upload \
     --user formwork-io \
     --repo greenline \
