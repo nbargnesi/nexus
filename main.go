@@ -89,19 +89,12 @@ func main() {
 	poller.Add(rr2_egress, zmq.POLLIN)
 
 	pprint("greenline alive")
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	exitchan := make(chan os.Signal, 0)
+	signal.Notify(exitchan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
-		for sig := range sigchan {
-			switch sig {
-			case syscall.SIGTERM:
-				die("received SIGTERM")
-			case syscall.SIGINT:
-				die("received SIGINT")
-			case syscall.SIGQUIT:
-				die("received SIGQUIT")
-			}
-		}
+		sig := <-exitchan
+		out("received %s signal, exiting.\n", sig.String())
+		os.Exit(0)
 	}()
 
 	pprint("greenline ready")
