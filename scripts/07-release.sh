@@ -12,6 +12,7 @@ cd "$DIR" || exit 1
 
 assert_env GH_KEY || exit 1
 prompt_env GL_VERSION "Version (e.g., 0.1): "
+prompt_env GL_NAME "Release name: "
 export GITHUB_TOKEN=$GH_KEY
 git tag v$GL_VERSION || exit 1
 
@@ -19,6 +20,6 @@ github-release release \
     --user formwork-io \
     --repo greenline \
     --tag v$GL_VERSION \
-    --name "$GL_VERSION" \
+    --name "$GL_NAME" \
     --description "Greenline v$GL_VERSION binaries for Linux and OS X"
 
