@@ -77,6 +77,7 @@ func ReadEnvironment() ([]rail, error) {
 			if index != 0 {
 				break
 			}
+			return nil, err
 		}
 		if name == "" {
 			break
