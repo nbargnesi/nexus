@@ -10,13 +10,27 @@ assert_source "$CUSTOM_ENV_SH" || return 1
 default DIR             "$DIR"
 default GL_VERSION      "experimental"
 
-### GREENLINE DEFAULT PORTS ###
-default GL_BCAST_INGRESS_PORT   9002
-default GL_BCAST_EGRESS_PORT    9003
-default GL_RR1_INGRESS_PORT     9004
-default GL_RR1_EGRESS_PORT      9005
-default GL_RR2_INGRESS_PORT     9006
-default GL_RR2_EGRESS_PORT      9007
+### GREENLINE DEFAULT RAILS ###
+# RAIL 0
+default GL_RAIL_0_NAME          "broadcast"
+default GL_RAIL_0_PATTERN       "pub/sub"
+default GL_RAIL_0_INGRESS_PORT  9002
+default GL_RAIL_0_EGRESS_PORT   9003
+# RAIL 1
+default GL_RAIL_1_NAME          "reqrep1"
+default GL_RAIL_1_PATTERN       "req/rep"
+default GL_RAIL_1_INGRESS_PORT  9004
+default GL_RAIL_1_EGRESS_PORT   9005
+# RAIL 2
+default GL_RAIL_2_NAME          "reqrep2"
+default GL_RAIL_2_PATTERN       "req/rep"
+default GL_RAIL_2_INGRESS_PORT  9006
+default GL_RAIL_2_EGRESS_PORT   9007
+# RAIL 3
+default GL_RAIL_3_NAME          "reqrep3"
+default GL_RAIL_3_PATTERN       "req/rep"
+default GL_RAIL_3_INGRESS_PORT  9008
+default GL_RAIL_3_EGRESS_PORT   9009
 
 ### PATHS ###
 default BUILD           "$DIR"/build
