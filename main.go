@@ -23,70 +23,54 @@ package main
 
 import (
 	"fmt"
-	zmq "github.com/pebbe/zmq4"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
-)
-
-const (
-	BCAST_INGRESS_PORT = "GL_BCAST_INGRESS_PORT"
-	BCAST_EGRESS_PORT  = "GL_BCAST_EGRESS_PORT"
-	RR1_INGRESS_PORT   = "GL_RR1_INGRESS_PORT"
-	RR1_EGRESS_PORT    = "GL_RR1_EGRESS_PORT"
-	RR2_INGRESS_PORT   = "GL_RR2_INGRESS_PORT"
-	RR2_EGRESS_PORT    = "GL_RR2_EGRESS_PORT"
+	zmq "github.com/pebbe/zmq4"
 )
 
 func main() {
-	env := getenv(BCAST_INGRESS_PORT)
-	bcast_ingress_port := asPort(env)
-	env = getenv(BCAST_EGRESS_PORT)
-	bcast_egress_port := asPort(env)
-	env = getenv(RR1_INGRESS_PORT)
-	rr1_ingress_port := asPort(env)
-	env = getenv(RR1_EGRESS_PORT)
-	rr1_egress_port := asPort(env)
-	env = getenv(RR2_INGRESS_PORT)
-	rr2_ingress_port := asPort(env)
-	env = getenv(RR2_EGRESS_PORT)
-	rr2_egress_port := asPort(env)
+	var rails []rail
+	var err error
+	if len(os.Args) == 2 {
+		rails, err = ReadConfigFile(os.Args[1])
+		if err != nil {
+			die(err.Error())
+		}
+	} else {
+		rails, err = ReadEnvironment()
+		if err != nil {
+			die(err.Error())
+		}
+	}
 
-	pprint("starting")
-
-	// CREATE EACH SOCKET...
-	sub_ingress := newSocket(zmq.SUB)
-	sub_ingress.SetSubscribe("")
-	defer sub_ingress.Close()
-	pub_egress := newSocket(zmq.PUB)
-	pub_egress.SetLinger(1)
-	defer pub_egress.Close()
-
-	rr1_ingress := newSocket(zmq.ROUTER)
-	defer rr1_ingress.Close()
-	rr1_egress := newSocket(zmq.DEALER)
-	defer rr1_egress.Close()
-	rr2_ingress := newSocket(zmq.ROUTER)
-	defer rr2_ingress.Close()
-	rr2_egress := newSocket(zmq.DEALER)
-	defer rr2_egress.Close()
-
-	// ... AND BIND
-	bind(sub_ingress, "tcp", "0.0.0.0", bcast_ingress_port)
-	bind(pub_egress, "tcp", "0.0.0.0", bcast_egress_port)
-	bind(rr1_ingress, "tcp", "0.0.0.0", rr1_ingress_port)
-	bind(rr1_egress, "tcp", "0.0.0.0", rr1_egress_port)
-	bind(rr2_ingress, "tcp", "0.0.0.0", rr2_ingress_port)
-	bind(rr2_egress, "tcp", "0.0.0.0", rr2_egress_port)
-
+	socket_pairs     := make(map[*zmq.Socket]*zmq.Socket)
+	socket_names     := make(map[*zmq.Socket]string)
 	poller := zmq.NewPoller()
-	poller.Add(sub_ingress, zmq.POLLIN)
-	poller.Add(rr1_ingress, zmq.POLLIN)
-	poller.Add(rr2_ingress, zmq.POLLIN)
-	poller.Add(rr1_egress, zmq.POLLIN)
-	poller.Add(rr2_egress, zmq.POLLIN)
+	for _, rail := range rails {
+		pprint("starting rail %s as %s", rail.Name, rail.Pattern)
+
+		var ingress *zmq.Socket
+		var egress  *zmq.Socket
+		switch rail.Pattern {
+		case "pubsub":
+			ingress, egress = railToPubSub(&rail, poller)
+		case "reqrep":
+			ingress, egress = railToRouterDealer(&rail, poller)
+		default:
+			die("The pattern %s is not valid.", rail.Pattern)
+		}
+
+		socket_pairs[ingress]     = egress
+		socket_names[ingress]     = fmt.Sprintf("%s (ingress)", rail.Name)
+
+		socket_pairs[egress]      = ingress
+		socket_names[egress]     = fmt.Sprintf("%s (egress)", rail.Name)
+
+		defer ingress.Close()
+		defer egress.Close()
+	}
 
 	pprint("greenline alive")
 	exitchan := make(chan os.Signal, 0)
@@ -100,118 +84,61 @@ func main() {
 	pprint("greenline ready")
 	for {
 		sockets, _ := poller.Poll(-1)
-		for _, socket := range sockets {
-			switch s := socket.Socket; s {
-			case sub_ingress:
-				pprint("processing broadcast message")
-				for {
-					msg, err := s.Recv(0)
-					if err != nil {
-						die("broadcast more: %s", err.Error())
-					}
-					more, err := s.GetRcvmore()
-					if err != nil {
-						die("broadcast recv more: %s", err.Error())
-					}
-					if more {
-						pub_egress.Send(msg, zmq.SNDMORE)
-					} else {
-						pub_egress.Send(msg, 0)
-						break
-					}
+		for _, polled := range sockets {
+			socket        := polled.Socket
+			paired_socket := socket_pairs[socket]
+			name          := socket_names[socket]
+
+			pprint("processing message for %s", name)
+			for {
+				msg, err := socket.Recv(0)
+				if err != nil {
+					die("failed on receive: %s", err.Error())
 				}
-			case rr1_ingress:
-				pprint("processing rr1 request")
-				for {
-					msg, err := s.Recv(0)
-					if err != nil {
-						die("rr1 ingress: %s", err.Error())
-					}
-					more, err := s.GetRcvmore()
-					if err != nil {
-						die("rr1 ingress recv more: %s", err.Error())
-					}
-					if more {
-						rr1_egress.Send(msg, zmq.SNDMORE)
-					} else {
-						rr1_egress.Send(msg, 0)
-						break
-					}
+				more, err := socket.GetRcvmore()
+				if err != nil {
+					die("failed on receive more: %s", err.Error())
 				}
-			case rr2_ingress:
-				pprint("processing rr2 request")
-				for {
-					msg, err := s.Recv(0)
-					if err != nil {
-						die("rr2 ingress: %s", err.Error())
-					}
-					more, err := s.GetRcvmore()
-					if err != nil {
-						die("rr2 ingress recv more: %s", err.Error())
-					}
-					if more {
-						rr2_egress.Send(msg, zmq.SNDMORE)
-					} else {
-						rr2_egress.Send(msg, 0)
-						break
-					}
-				}
-			case rr1_egress:
-				pprint("processing rr1 response")
-				for {
-					msg, err := s.Recv(0)
-					if err != nil {
-						die("rr1 egress: %s", err.Error())
-					}
-					more, err := s.GetRcvmore()
-					if err != nil {
-						die("rr1 egress recv more: %s", err.Error())
-					}
-					if more {
-						rr1_ingress.Send(msg, zmq.SNDMORE)
-					} else {
-						rr1_ingress.Send(msg, 0)
-						break
-					}
-				}
-			case rr2_egress:
-				pprint("processing rr2 response")
-				for {
-					msg, err := s.Recv(0)
-					if err != nil {
-						die("rr2 egress: %s", err.Error())
-					}
-					more, err := s.GetRcvmore()
-					if err != nil {
-						die("rr2 egress recv more: %s", err.Error())
-					}
-					if more {
-						rr2_ingress.Send(msg, zmq.SNDMORE)
-					} else {
-						rr2_ingress.Send(msg, 0)
-						break
-					}
+				if more {
+					paired_socket.Send(msg, zmq.SNDMORE)
+				} else {
+					paired_socket.Send(msg, 0)
+					break
 				}
 			}
 		}
 	}
 }
 
-func getenv(env string) string {
-	_env := os.Getenv(env)
-	if len(_env) == 0 {
-		die("no " + env + " is set")
-	}
-	return _env
+func railToPubSub(rail *rail, poller *zmq.Poller) (ingress *zmq.Socket, egress *zmq.Socket) {
+	// CREATE EACH SOCKET...
+	ingress = newSocket(zmq.SUB)
+	ingress.SetSubscribe("")
+
+	egress = newSocket(zmq.PUB)
+	egress.SetLinger(1)
+
+	// ... AND BIND
+	bind(ingress, "tcp", "0.0.0.0", rail.Ingress)
+	bind(egress, "tcp", "0.0.0.0", rail.Egress)
+
+	poller.Add(ingress, zmq.POLLIN)
+	return
 }
 
-func asPort(env string) (port int) {
-	port, err := strconv.Atoi(env)
-	if err != nil {
-		die("invalid port: %s", env)
-	} else if port < 1 || port > 65535 {
-		die("invalid port: %s", env)
-	}
+func railToRouterDealer(rail *rail, poller *zmq.Poller) (ingress *zmq.Socket, egress *zmq.Socket) {
+	// CREATE EACH SOCKET...
+	ingress = newSocket(zmq.ROUTER)
+
+	egress = newSocket(zmq.DEALER)
+	egress.SetLinger(1)
+
+	// ... AND BIND
+	bind(ingress, "tcp", "0.0.0.0", rail.Ingress)
+	bind(egress, "tcp", "0.0.0.0", rail.Egress)
+
+	poller.Add(ingress, zmq.POLLIN)
+	poller.Add(egress, zmq.POLLIN)
 	return
 }
 
@@ -225,7 +152,7 @@ func newSocket(ztype zmq.Type) (socket *zmq.Socket) {
 
 func bind(socket *zmq.Socket, transport string, address string, port int) {
 	endpoint := fmt.Sprintf("%s://%s:%d", transport, address, port)
-	out("Binding socket %d... ", port)
+	out("Binding socket %d...", port)
 	err := socket.Bind(endpoint)
 	if err != nil {
 		die("failed binding %s: %s", endpoint, err.Error())
