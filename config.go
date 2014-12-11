@@ -24,23 +24,23 @@ package main
 import (
 	"errors"
 	"fmt"
+	toml "github.com/BurntSushi/toml"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
-	toml "github.com/BurntSushi/toml"
 )
 
 type rail struct {
-	Name         string
-	Pattern      string
-	Ingress      int
-	Egress       int
+	Name    string
+	Pattern string
+	Ingress int
+	Egress  int
 }
 
 type rails struct {
-	Rail         []rail
+	Rail []rail
 }
 
 func ReadConfigFile(path string) ([]rail, error) {
@@ -64,10 +64,10 @@ func ReadConfigFile(path string) ([]rail, error) {
 }
 
 func ReadEnvironment() ([]rail, error) {
-	GL_RAIL_NAME_TMPL    := "GL_RAIL_%d_NAME"
+	GL_RAIL_NAME_TMPL := "GL_RAIL_%d_NAME"
 	GL_RAIL_PATTERN_TMPL := "GL_RAIL_%d_PATTERN"
 	GL_RAIL_INGRESS_TMPL := "GL_RAIL_%d_INGRESS_PORT"
-	GL_RAIL_EGRESS_TMPL  := "GL_RAIL_%d_EGRESS_PORT"
+	GL_RAIL_EGRESS_TMPL := "GL_RAIL_%d_EGRESS_PORT"
 
 	var rails []rail
 	index := 0
@@ -80,15 +80,15 @@ func ReadEnvironment() ([]rail, error) {
 			break
 		}
 
-		pattern, err      := getenv(fmt.Sprintf(GL_RAIL_PATTERN_TMPL, index))
+		pattern, err := getenv(fmt.Sprintf(GL_RAIL_PATTERN_TMPL, index))
 		if err != nil {
 			return nil, err
 		}
-		ingress, err      := getenv(fmt.Sprintf(GL_RAIL_INGRESS_TMPL, index))
+		ingress, err := getenv(fmt.Sprintf(GL_RAIL_INGRESS_TMPL, index))
 		if err != nil {
 			return nil, err
 		}
-		egress, err       := getenv(fmt.Sprintf(GL_RAIL_EGRESS_TMPL, index))
+		egress, err := getenv(fmt.Sprintf(GL_RAIL_EGRESS_TMPL, index))
 		if err != nil {
 			return nil, err
 		}
@@ -96,12 +96,12 @@ func ReadEnvironment() ([]rail, error) {
 		if err != nil {
 			return nil, err
 		}
-		egress_port, err  := asPort(egress)
+		egress_port, err := asPort(egress)
 		if err != nil {
 			return nil, err
 		}
 
-		rails = append(rails, rail {
+		rails = append(rails, rail{
 			Name:    name,
 			Pattern: pattern,
 			Ingress: ingress_port,
@@ -132,7 +132,6 @@ func validateRails(rails []rail) (*rail, error) {
 
 	return nil, nil
 }
-
 
 func getenv(env string) (string, error) {
 	_env := os.Getenv(env)
