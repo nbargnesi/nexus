@@ -72,7 +72,10 @@ func ReadEnvironment() ([]rail, error) {
 	var rails []rail
 	index := 0
 	for {
-		name, _ := getenv(fmt.Sprintf(GL_RAIL_NAME_TMPL, index))
+		name, err := getenv(fmt.Sprintf(GL_RAIL_NAME_TMPL, index))
+		if err != nil {
+			return nil, err
+		}
 		if name == "" {
 			break
 		}
