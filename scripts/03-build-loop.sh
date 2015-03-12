@@ -17,7 +17,7 @@ if [ $? -eq 0 ]; then
 fi
 mkdir -p build || exit 1
 while true; do
-    gate || exit 1
+    "$GOSH_SCRIPTS"/gate || exit 1
     clear
     date +"%a %b %m %T"
     echo "[BUILDING]"

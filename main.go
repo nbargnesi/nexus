@@ -32,13 +32,14 @@ import (
 
 func main() {
 	var rails []rail
-	var err error
 	if len(os.Args) == 2 {
+		var err error
 		rails, err = ReadConfigFile(os.Args[1])
 		if err != nil {
 			die(err.Error())
 		}
 	} else {
+		var err error
 		rails, err = ReadEnvironment()
 		if err != nil {
 			die(err.Error())
