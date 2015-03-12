@@ -10,9 +10,9 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"/../
 source "$DIR"/env.sh || exit 1
 cd "$DIR" || exit 1
 
-assert_env GH_KEY || exit 1
-prompt_env GL_VERSION "Version (e.g., 0.1): "
-prompt_env GL_NAME "Release name: "
+assert-env-or-die GH_KEY || exit 1
+prompt-env GL_VERSION "Version (e.g., 0.1): "
+prompt-env GL_NAME "Release name: "
 export GITHUB_TOKEN=$GH_KEY
 git tag v$GL_VERSION || exit 1
 

@@ -15,8 +15,8 @@ if [ ! -x "$BUILD/greenline" ]; then
     exit 1
 fi
 
-assert_env GH_KEY || exit 1
-prompt_env GL_VERSION "Version (e.g., 0.1): "
+assert-env-or-die GH_KEY
+prompt-env GL_VERSION "Version (e.g., 0.1): "
 export GITHUB_TOKEN=$GH_KEY
 
 PLAT=$(uname | tr '[:upper:]' '[:lower:]')
