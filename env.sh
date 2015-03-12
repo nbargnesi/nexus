@@ -8,7 +8,6 @@ assert-source "$CUSTOM_ENV_SH" || return 1
 
 ### GENERAL ENV VARS ###
 default DIR             "$DIR"
-default GL_VERSION      "0.1.4"
 
 ### GREENLINE DEFAULT RAILS ###
 # RAIL 0
