@@ -1,6 +1,6 @@
 [float]
 Greenline image:https://travis-ci.org/formwork-io/greenline.svg["Build Status", link="https://travis-ci.org/formwork-io/greenline"]
-=======================================================================================================================================
+===================================================================================================================================
 
 Greenline is an agnostic relay for interconnecting disparate software
 components. It is named after the oldest subway line of the same name in
