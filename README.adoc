@@ -1,11 +1,15 @@
-greenline
----------
+[float]
+Greenline image:https://travis-ci.org/formwork-io/greenline.svg["Build Status", link="https://travis-ci.org/formwork-io/greenline"]
+=======================================================================================================================================
 
-Greenline is an agnostic relay for interconnecting disparate components. It is
-named after the oldest subway line of the same name in Boston, Massachusetts.
+Greenline is an agnostic relay for interconnecting disparate software
+components. It is named after the oldest subway line of the same name in
+Boston, Massachusetts.
+
+image:extra/images/greenline-256.png
 
 
-usage
+Usage
 -----
 
 - Using environment variables:
