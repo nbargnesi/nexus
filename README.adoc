@@ -6,7 +6,7 @@ Greenline is an agnostic relay for interconnecting disparate software
 components. It is named after the oldest subway line of the same name in
 Boston, Massachusetts.
 
-image:extra/images/greenline-256.png
+image:extra/images/greenline-256.png[]
 
 
 Usage
