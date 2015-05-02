@@ -6,10 +6,10 @@ for interconnecting disparate software components. It abstracts the useful
 parts of distributed systems to enable flexible patterns in designing,
 scaling, and maintaining advanced system architectures.
 
-Software systems of all sizes can benefit from integrating
+Software systems of all sizes can benefit from an integrated
 link:https://github.com/formwork-io/greenline[Greenline] (or similar
-technologies) into the design. The challenges around the growth and evolution
-of software, previously difficult by nature, become tractable as the design
+technologies). The challenges around the growth and evolution of software,
+previously difficult by nature, become tractable as the design
 unburdens the designer. These same challenges become trivial.
 
 Some common examples where a
