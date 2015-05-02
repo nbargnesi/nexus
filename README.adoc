@@ -21,6 +21,9 @@ benefit:
 * Enabling microservices
 * Addressing scaling concerns
 
+The Name
+--------
+
 Greenline is named after the oldest subway line of the same name in
 Boston, Massachusetts. 
 
