@@ -30,7 +30,16 @@ import (
 	"time"
 )
 
+const (
+	MsgEvent = 1 << iota
+	BinEvent = 1 << iota
+)
+
 func main() {
+	info := "greenline: notoriously unreliable\n" +
+		"https://github.com/formwork-io/greenline\n" +
+		"This is free software with ABSOLUTELY NO WARRANTY."
+	fmt.Printf("%s\n--\n", info)
 	var rails []rail
 	if len(os.Args) == 2 {
 		var err error
@@ -45,6 +54,7 @@ func main() {
 			die(err.Error())
 		}
 	}
+	pprint("configuring %d rails", len(rails))
 
 	socket_pairs := make(map[*zmq.Socket]*zmq.Socket)
 	socket_names := make(map[*zmq.Socket]string)
@@ -82,33 +92,126 @@ func main() {
 		os.Exit(0)
 	}()
 
+	reloadchan := make(chan int)
+	go reloader(reloadchan)
+	readychan := make(chan bool)
+	pollchan := make(chan bool)
+	go func() {
+		for {
+			sockets, err := poller.Poll(-1)
+			if err != nil {
+				readychan <- false
+				return
+			}
+			if len(sockets) != 0 {
+				readychan <- true
+			}
+			// wait to poll once msgs processed
+			<-pollchan
+		}
+	}()
 	pprint("greenline ready")
 	for {
-		sockets, _ := poller.Poll(-1)
-		for _, polled := range sockets {
-			socket := polled.Socket
-			paired_socket := socket_pairs[socket]
-			name := socket_names[socket]
+		select {
+		case reloadOp := <-reloadchan:
+			if reloadOp&BinReload == BinReload {
+				pprint("new binary available, restarting greenline")
+				for key, value := range socket_pairs {
+					key.Close()
+					value.Close()
+				}
+				zmq.Term()
+				// exec or die
+				restart()
+			} else if reloadOp&ConfigReload == ConfigReload {
+				pprint("new configuration available, restarting greenline")
+				for key, value := range socket_pairs {
+					key.Close()
+					value.Close()
+				}
+				zmq.Term()
+				// exec or die
+				restart()
+			}
+		case ready := <-readychan:
+			if !ready {
+				die("ready set fail")
+			}
+			// ready set go
+			sockets, err := poller.Poll(-1)
+			if err != nil {
+				die("poll returned err: %s", err.Error())
+			}
 
-			pprint("processing message for %s", name)
-			for {
-				msg, err := socket.Recv(0)
-				if err != nil {
-					die("failed on receive: %s", err.Error())
+			for _, polled := range sockets {
+				socket := polled.Socket
+				paired_socket := socket_pairs[socket]
+				name := socket_names[socket]
+
+				pprint("processing message for %s", name)
+				for {
+					msg, err := socket.Recv(0)
+					if err != nil {
+						die("failed on receive: %s", err.Error())
+					}
+					more, err := socket.GetRcvmore()
+					if err != nil {
+						die("failed on receive more: %s", err.Error())
+					}
+					if more {
+						paired_socket.Send(msg, zmq.SNDMORE)
+					} else {
+						paired_socket.Send(msg, 0)
+						break
+					}
 				}
-				more, err := socket.GetRcvmore()
-				if err != nil {
-					die("failed on receive more: %s", err.Error())
-				}
-				if more {
-					paired_socket.Send(msg, zmq.SNDMORE)
-				} else {
-					paired_socket.Send(msg, 0)
-					break
+			}
+			pollchan <- true
+		}
+	}
+	/*
+		for {
+			sockets, err := poller.Poll(1)
+			if err != nil {
+				fmt.Printf("poll returned err: %s", err.Error())
+				continue
+			}
+			//fmt.Printf("%d\n", len(sockets))
+
+			// for-select a mainchan handling MSG_EVENT/BIN_EVENT
+			// delivery and react accordingly.
+			//
+			// if a MSG_EVENT is delivered over the channel, range
+			// the sockets...
+			//
+			// if a BIN_EVENT is delivered over the channel, restart
+			// greenline
+
+			for _, polled := range sockets {
+				socket := polled.Socket
+				paired_socket := socket_pairs[socket]
+				name := socket_names[socket]
+
+				pprint("processing message for %s", name)
+				for {
+					msg, err := socket.Recv(0)
+					if err != nil {
+						die("failed on receive: %s", err.Error())
+					}
+					more, err := socket.GetRcvmore()
+					if err != nil {
+						die("failed on receive more: %s", err.Error())
+					}
+					if more {
+						paired_socket.Send(msg, zmq.SNDMORE)
+					} else {
+						paired_socket.Send(msg, 0)
+						break
+					}
 				}
 			}
 		}
-	}
+	*/
 }
 
 func railToPubSub(rail *rail, poller *zmq.Poller) (ingress *zmq.Socket, egress *zmq.Socket) {
@@ -192,3 +295,5 @@ func die(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n")
 	os.Exit(1)
 }
+
+// vim: ts=4 noexpandtab
