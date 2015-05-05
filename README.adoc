@@ -1,5 +1,5 @@
 Greenline image:https://img.shields.io/github/release/formwork-io/greenline.svg[release] image:https://img.shields.io/github/license/formwork-io/greenline.svg[license] 
-============================================================================================================================================================
+=======================================================================================================================================================================
 
 link:https://github.com/formwork-io/greenline[Greenline] is an agnostic relay
 for interconnecting disparate software components. It abstracts the useful
