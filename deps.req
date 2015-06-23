@@ -1,0 +1,4 @@
+pyzmq==14.7.0
+setproctitle==1.1.8
+lazarus==0.6.3
+
